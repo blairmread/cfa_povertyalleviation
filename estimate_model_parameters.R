@@ -56,9 +56,10 @@ state_mods_TMP <- lapply(loop_states, function(state){
   
 })
 
-state_mods <- do.call(rbind, state_mods_TMP)
-colnames(state_mods) <- paste(colnames(state_mods), "_Rnls", sep = "")
-# write.csv(state_mods, "~/Dropbox (MIT)/Code for America/Impact Metrics/cfa_povertyalleviation_downloadfolder/state_paras.csv")
+state_mods_wt <- do.call(rbind, state_mods_TMP)
+colnames(state_mods_wt) <- paste(colnames(state_mods_wt), "_Rnls", sep = "")
+write.csv(state_mods_wt, "/Users/blair@codeforamerica.org/Documents/GitHub/cfa_povertyalleviation/state_paras.csv")
+
 
 #############################################################################
 #############################################################################
@@ -103,8 +104,11 @@ state_list <- cps %>%
   distinct(., .keep_all = TRUE)
 
 sims_out <- left_join(sims_out_TMP, state_list, by = c("state" = "state_alpha"))
-pes_with_sims <- right_join(state_mods, sims_out, by = c("state_Rnls" = "State")) 
+pes_with_sims <- right_join(state_mods_wt, sims_out, by = c("state_Rnls" = "State")) 
 dim(pes_with_sims)  
+
+write.csv(pes_with_sims, "/Users/blair@codeforamerica.org/Documents/GitHub/cfa_povertyalleviation/simulate_state_paras.csv")
+
 
 # Note: We don't actually need the simulations for the analyses we are doing for CfA
 # but if we ever want to include uncertainty estimates around our metrics, I have 
@@ -172,9 +176,12 @@ baseline_estimates <- cbind.data.frame(pes_with_sims, tau_l[,100]) %>%
   summarize_if(is.numeric, mean) %>% 
   rename(tau = `tau_l[, 100]`)
 
+baseline_estimates$R <- ((baseline_estimates$a_Rnls * baseline_estimates$tau + 
+                            (baseline_estimates$b1_Rnls / baseline_estimates$b2_Rnls) * exp(baseline_estimates$b2_Rnls * baseline_estimates$tau) - (baseline_estimates$b1 / baseline_estimates$b2)) + 
+                           (psi^2 - (psi^2) / 2) - (psi * baseline_estimates$tau - (baseline_estimates$tau^2) / 2)) / 
+                        (psi^2 - (psi^2) / 2)
+
 write.csv(baseline_estimates, "/Users/blair@codeforamerica.org/Documents/GitHub/cfa_povertyalleviation/state_pars_noweights.csv")
-
-
 
 
 #############################################################################
@@ -182,6 +189,8 @@ write.csv(baseline_estimates, "/Users/blair@codeforamerica.org/Documents/GitHub/
 ######################### MODELS WITH WEIGHTS ###############################
 #############################################################################
 #############################################################################
+
+parameters_no_weights <- read.csv("/Users/blair@codeforamerica.org/Documents/GitHub/cfa_povertyalleviation/state_paras.csv")
 
 state_mods_wt_TMP <- lapply(loop_states, function(state){
   st_d <- cps[cps$state_al == state,]
@@ -270,6 +279,7 @@ colnames(state_mods_wt) <- paste(colnames(state_mods_wt), "_Rnls", sep = "")
 ########################### WITH WEIGHTS ####################################
 #############################################################################
 
+
 sims_wt_TMP <- lapply(loop_states, function(state){
   st_d <- cps[cps$state_al == state,]
   st_d <- cps[cps$state_al == state,]
@@ -323,7 +333,7 @@ sims_wt_out <- left_join(sims_out_wt_TMP, state_list, by = c("state" = "state_al
 pes_wt_with_sims <- right_join(state_mods_wt, sims_wt_out, by = c("state_Rnls" = "State")) 
 dim(pes_wt_with_sims) # 50000 x 15. All good here! 
 
-
+write.csv(pes_wt_with_sims, "/Users/blair@codeforamerica.org/Documents/GitHub/cfa_povertyalleviation/simulate_state_paras_weights.csv")
 
 #############################################################################
 #############################################################################
@@ -388,15 +398,11 @@ baseline_estimates_weights <- cbind.data.frame(pes_wt_with_sims, tau_l[,100]) %>
   summarize_if(is.numeric, mean) %>% 
   rename(tau = `tau_l[, 100]`)
 
+baseline_estimates_weights$R <- ((baseline_estimates_weights$a_Rnls * baseline_estimates_weights$tau + 
+                                    (baseline_estimates_weights$b1_Rnls / baseline_estimates_weights$b2_Rnls) * exp(baseline_estimates_weights$b2_Rnls * baseline_estimates_weights$tau) - (baseline_estimates_weights$b1 / baseline_estimates_weights$b2)) + 
+                                   (psi^2 - (psi^2) / 2) - (psi * baseline_estimates_weights$tau - (baseline_estimates_weights$tau^2) / 2)) / 
+  (psi^2 - (psi^2) / 2)
+
 write.csv(baseline_estimates_weights, "/Users/blair@codeforamerica.org/Documents/GitHub/cfa_povertyalleviation/state_pars_with_weights.csv")
-
-
-
-#### COMPARE WEIGHTED AND UNWEIGHTED VALUES ####
-
-
-
-
-
 
 
