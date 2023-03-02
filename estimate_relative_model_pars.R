@@ -7,30 +7,33 @@
 
 loop_states <- as.list(unique(cps$state_al))
 
-state_mods_TMP <- lapply(loop_states, function(state){
+state_mods_rel_TMP <- lapply(loop_states, function(state){
   st_data <- cps[cps$state_al == state,]
+  psi_rate <- as.numeric(col_st[col_st$State == trimws(toupper(unique(st_data$State))), "col"]) / 1000
+  
   ests <- combine_all(data = st_data, 
                       weights_value = FALSE, 
                       starting_values = NA, 
                       dv_string = "totalTransfers", 
-                      psi = set_psi_national / 1000)
+                      psi_value = psi_rate)
 })
 
-state_mods <- do.call(rbind, state_mods_TMP)
+state_mods_rel <- do.call(rbind, state_mods_rel_TMP)
 
-state_mods_weights_TMP <- do.call(rbind, lapply(loop_states, function(state){
+state_mods_rel_weights_TMP <- do.call(rbind, lapply(loop_states, function(state){
   st_data <- cps[cps$state_al == state,]
   start_pars <- state_mods[state_mods$state_Rnls == unique(st_data$State),]
+  psi_rate <- as.numeric(col_st[col_st$State == trimws(toupper(unique(st_data$State))), "col"]) / 1000
   
   ests <- combine_all(data = st_data, 
                       weights_value = TRUE, 
                       starting_values = start_pars, 
                       dv_string = "totalTransfers", 
-                      psi = set_psi_national / 1000)
+                      psi_value = psi_rate)
 }))
 
-state_mods_weights <- as.data.frame(do.call(cbind, state_mods_weights_TMP))
-state_mods_weights$r_val <- as.numeric(as.character(unlist(state_mods_weights$r_val)))
+state_mods_weights_rel <- as.data.frame(do.call(cbind, state_mods_rel_weights_TMP))
+state_mods_weights_rel$r_val <- as.numeric(as.character(unlist(state_mods_weights_rel$r_val)))
 
 sub_states <- c("California", "New York", "New Mexico", "Minnesota", 
                 "Louisiana", "Connecticut", "Maryland", "Illinois", 

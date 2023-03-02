@@ -281,7 +281,7 @@ get_r <- function(alpha, b1, b2, tau, psi){
   
 }
 
-combine_all <- function(data, weights_value, starting_values, dv_string, psi){
+combine_all <- function(data, weights_value, starting_values, dv_string, psi_value){
   
   pars <- get_model_parameters(data_name = data, 
                        weights = weights_value, 
@@ -296,7 +296,7 @@ combine_all <- function(data, weights_value, starting_values, dv_string, psi){
   
   pars_sims <- cbind.data.frame(pars, sims)
   
-  tau_search <- get_tau(psi = 19.790, 
+  tau_search <- get_tau(psi = psi_value, 
                            sims_dataframe = pars_sims)
   
   estimates <- cbind.data.frame(pars_sims, tau_search[,100]) %>% 
@@ -308,7 +308,7 @@ combine_all <- function(data, weights_value, starting_values, dv_string, psi){
                        b1 = estimates$b1_Rnls,
                        b2 = estimates$b2_Rnls, 
                        tau = estimates$tau, 
-                       psi = psi)
+                       psi = psi_value)
   
   return(estimates)
   

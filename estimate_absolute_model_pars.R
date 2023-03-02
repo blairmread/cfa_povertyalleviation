@@ -13,7 +13,7 @@ state_mods_TMP <- lapply(loop_states, function(state){
                     weights_value = FALSE, 
                     starting_values = NA, 
                     dv_string = "totalTransfers", 
-                    psi = set_psi_national / 1000)
+                    psi_value = set_psi_national / 1000)
 })
 
 state_mods <- do.call(rbind, state_mods_TMP)
@@ -26,7 +26,7 @@ state_mods_weights_TMP <- do.call(rbind, lapply(loop_states, function(state){
                       weights_value = TRUE, 
                       starting_values = start_pars, 
                       dv_string = "totalTransfers", 
-                      psi = set_psi_national / 1000)
+                      psi_value = set_psi_national / 1000)
 }))
 
 state_mods_weights <- as.data.frame(do.call(cbind, state_mods_weights_TMP))
@@ -67,7 +67,7 @@ national <- combine_all(data = cps_national,
                            weights_value = TRUE, 
                            starting_values = NA, 
                            dv_string = "totalTransfers", 
-                           psi = set_psi_national / 1000)
+                        psi_value = set_psi_national / 1000)
 
 
 
@@ -80,59 +80,52 @@ national <- combine_all(data = cps_national,
 
 # First, run "calc_percap.R" to get the right outcome variables in there 
 
-allcfa22 <- combine_all(data = cps_national, 
+# Data is cps_cfa
+# variables are totalTransfers_cfa22
+
+national_outcomes <- colnames(cps_cfa)[grepl("totalTransfers_", colnames(cps_cfa))]
+
+cps_cfa$State <- "National"
+cps_cfa$state <- "National"
+cps_cfa$state_alpha <- "National"
+
+allcfa22 <- combine_all(data = cps_cfa, 
                         weights_value = TRUE, 
                         starting_values = NA, 
-                        dv_string = "new_lift_allcfa", 
-                        psi = 19.790) %>% 
+                        dv_string = "totalTransfers_cfa22", 
+                        psi_value = set_psi_national / 1000) %>% 
   mutate(model = "All CfA", 
          year = 2022)
 
-allcfa21 <- combine_all(data = cps_national, 
+allcfa21 <- combine_all(data = cps_cfa, 
                         weights_value = TRUE, 
                         starting_values = NA, 
-                        dv_string = "new_lift_allcfa21", 
-                        psi = 19.790) %>% 
+                        dv_string = "totalTransfers_cfa21", 
+                        psi_value = set_psi_national / 1000) %>% 
   mutate(model = "All CfA", 
          year = 2021)
-
-allcfa20 <- combine_all(data = cps_national, 
-                        weights_value = TRUE, 
-                        starting_values = NA, 
-                        dv_string = "new_lift_allcfa20", 
-                        psi = 19.790) %>% 
-  mutate(model = "All CfA", 
-         year = 2020)
 
 nsn22 <- combine_all(data = cps_national, 
                      weights_value = TRUE, 
                      starting_values = NA, 
-                     dv_string = "new_lift_sn", 
-                     psi = 19.790) %>% 
+                     dv_string = "totalTransfers_sn22", 
+                     psi_value = 19.790) %>% 
   mutate(model = "Safety Net", 
          year = 2022)
 
 nsn21 <- combine_all(data = cps_national, 
                      weights_value = TRUE, 
                      starting_values = NA, 
-                     dv_string = "new_lift_sn21", 
-                     psi = 19.790) %>% 
+                     dv_string = "totalTransfers_csn21", 
+                     psi_value = 19.790) %>% 
   mutate(model = "Safety Net", 
          year = 2021)
-
-nsn20 <- combine_all(data = cps_national, 
-                     weights_value = TRUE, 
-                     starting_values = NA, 
-                     dv_string = "new_lift_sn20", 
-                     psi = 19.790) %>% 
-  mutate(model = "Safety Net", 
-         year = 2020)
 
 ntx22 <- combine_all(data = cps_national, 
                      weights_value = TRUE, 
                      starting_values = NA, 
                      dv_string = "new_lift_tx", 
-                     psi = 19.790) %>% 
+                     psi_value = 19.790) %>% 
   mutate(model = "Tax Portfolio", 
          year = 2022)
 
@@ -140,7 +133,7 @@ ntx21 <- combine_all(data = cps_national,
                      weights_value = TRUE, 
                      starting_values = NA, 
                      dv_string = "new_lift_tx21", 
-                     psi = 19.790) %>% 
+                     psi_value = 19.790) %>% 
   mutate(model = "Tax Portfolio", 
          year = 2021)
 
@@ -148,7 +141,7 @@ ntx20 <- combine_all(data = cps_national,
                      weights_value = TRUE, 
                      starting_values = NA, 
                      dv_string = "new_lift_tx20", 
-                     psi = 19.790) %>% 
+                     psi_value = 19.790) %>% 
   mutate(model = "Tax Portfolio", 
          year = 2020)
 
@@ -187,7 +180,7 @@ cpstx21_TMP <- lapply(loop_states, function(state){
                       weights_value = TRUE, 
                       starting_values = start_pars, 
                       dv_string = "newlift_st_tx21", 
-                      psi = 19.790)
+                      psi_value = 19.790)
 })
 
 cpstx21 <- do.call(rbind, cpstx21_TMP) %>% 
@@ -205,7 +198,7 @@ cpstx20_TMP <- lapply(loop_states, function(state){
                       weights_value = TRUE, 
                       starting_values = start_pars, 
                       dv_string = "newlift_st_tx20", 
-                      psi = 19.790)
+                      psi_value = 19.790)
 })
 
 cpstx20 <- do.call(rbind, cpstx20_TMP) %>% 
@@ -221,7 +214,7 @@ n.m21 <- combine_all(data = cpsmn,
                      weights_value = TRUE, 
                      starting_values = NA, 
                      dv_string = "mn21", 
-                     psi = 19.790)
+                     psi_value = 19.790)
 n.m21.lift <- n.m21$cfa_r - as.numeric(baseline_estimates_weights[baseline_estimates_weights$state_Rnls == "Minnesota", "R"])
 n.m21.lift * 100
 
@@ -230,7 +223,7 @@ n.m22 <- combine_all(data = cpsmn,
                      weights_value = TRUE, 
                      starting_values = NA, 
                      dv_string = "mn22", 
-                     psi = 19.790)
+                     psi_value = 19.790)
 n.m22.lift <- n.m22$cfa_r - as.numeric(baseline_estimates_weights[baseline_estimates_weights$state_Rnls == "Minnesota", "R"])
 n.m22.lift * 100
 
@@ -243,7 +236,7 @@ n.ca21 <- combine_all(data = cpsca,
                      weights_value = TRUE, 
                      starting_values = NA, 
                      dv_string = "ca_new21", 
-                     psi = 19.790)
+                     psi_value = 19.790)
 n.ca21.lift <- n.ca21$cfa_r - as.numeric(baseline_estimates_weights[baseline_estimates_weights$state_Rnls == "California", "R"])
 n.ca21.lift * 100
 
@@ -252,7 +245,7 @@ n.ca22 <- combine_all(data = cpsca,
                      weights_value = TRUE, 
                      starting_values = NA, 
                      dv_string = "ca_new22", 
-                     psi = 19.790)
+                     psi_value = 19.790)
 n.ca22.lift <- n.ca22$cfa_r - as.numeric(baseline_estimates_weights[baseline_estimates_weights$state_Rnls == "California", "R"])
 n.ca22.lift * 100
 
