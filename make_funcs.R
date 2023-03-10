@@ -4,9 +4,11 @@ library(tidyverse)
 library(readstata13)
 library(MASS)
 
-get_model_parameters <- function(data_name, weights = TRUE, new_starting, dv){
+get_model_parameters <- function(data_name, weights = TRUE, 
+                                 weights_column, new_starting, dv){
   
   data_name$outcome <- data_name[, dv]
+  data_name$use_weights <- data_name[, weights_column]
 
   if(weights == FALSE){
   mod <- tryCatch(nls(formula = outcome ~ a + b1 * exp((b2) * Y), 
@@ -59,7 +61,7 @@ get_model_parameters <- function(data_name, weights = TRUE, new_starting, dv){
                         start = list(a = 1, 
                                      b1 = 2, 
                                      b2 = -0.1),
-                        weights = asecwt), 
+                        weights = use_weights), 
                     error = function(e) NULL)
     
     if(is.null(mod) == TRUE){ 
@@ -69,7 +71,7 @@ get_model_parameters <- function(data_name, weights = TRUE, new_starting, dv){
                                             b1 = 2, 
                                             b2 = -0.1), 
                                algorithm = "port", 
-                               weights = asecwt),
+                               weights = use_weights),
                            error = function(e) NULL)
       
       if(is.null(mod_port) == TRUE){
@@ -81,7 +83,7 @@ get_model_parameters <- function(data_name, weights = TRUE, new_starting, dv){
                                               b2 = as.numeric(new_starting["b2"])),
                                  algorithm = "port",
                                  control = list(maxiter = 1000, tol = 1e-05, scaleOffset = 1),
-                                 weights = asecwt)
+                                 weights = use_weights)
         
         pars <- as.data.frame(t(mod_port_newstart$m$getPars()))
         vcov_out <- as.data.frame(vcov(mod_port_newstart))
@@ -130,9 +132,11 @@ get_model_parameters <- function(data_name, weights = TRUE, new_starting, dv){
 
 }
 
-get_uncertainty <- function(data_name, weights = TRUE, new_starting, dv){
+get_uncertainty <- function(data_name, weights = TRUE, 
+                            weights_column, new_starting, dv){
   
   data_name$outcome <- data_name[, dv]
+  data_name$use_weights <- data_name[, weights_column]
   
   if(weights == FALSE){
     mod <- tryCatch(nls(formula = outcome ~ a + b1 * exp((b2) * Y), 
@@ -167,7 +171,7 @@ get_uncertainty <- function(data_name, weights = TRUE, new_starting, dv){
                         start = list(a = 1, 
                                      b1 = 2, 
                                      b2 = -0.1),
-                        weights = asecwt), 
+                        weights = use_weights), 
                     error = function(e) NULL)
     
     if(is.null(mod) == TRUE){ 
@@ -177,7 +181,7 @@ get_uncertainty <- function(data_name, weights = TRUE, new_starting, dv){
                                             b1 = 2, 
                                             b2 = -0.1), 
                                algorithm = "port", 
-                               weights = asecwt),
+                               weights = use_weights),
                            error = function(e) NULL)
       
       if(is.null(mod_port) == TRUE){
@@ -189,7 +193,7 @@ get_uncertainty <- function(data_name, weights = TRUE, new_starting, dv){
                                               b2 = as.numeric(new_starting["b2"])),
                                  algorithm = "port",
                                  control = list(maxiter = 1000, tol = 1e-05, scaleOffset = 1),
-                                 weights = asecwt)
+                                 weights = use_weights)
         
         pars_out <- mod_port_newstart$m$getPars()
         vcov_out <- vcov(mod_port_newstart)
@@ -281,16 +285,19 @@ get_r <- function(alpha, b1, b2, tau, psi){
   
 }
 
-combine_all <- function(data, weights_value, starting_values, dv_string, psi_value){
+combine_all <- function(data, weights_value, set_weights, 
+                        starting_values, dv_string, psi_value){
   
   pars <- get_model_parameters(data_name = data, 
                        weights = weights_value, 
+                       weights_column = set_weights,
                        new_starting = starting_values, 
                        dv = dv_string)
   colnames(pars) <- paste(colnames(pars), "_Rnls", sep = "")
   
   sims <- get_uncertainty(data_name = data, 
                   weights = weights_value, 
+                  weights_column = set_weights,
                   new_starting = starting_values, 
                   dv = dv_string)
   
@@ -315,28 +322,63 @@ combine_all <- function(data, weights_value, starting_values, dv_string, psi_val
 }
 
 
-# Set CfA colors: 
-dark_purple <- "#2B1A78"
-med_purple <- "#5650BE"
-light_purple <- "#C2C0E8"
-dark_red <- "#AF121D"
-med_red <- "#EF6C75"
-light_red <- "#F9C8CB"
-dark_lilac <- "#A1B4EA"
-med_lilac <- "#C9D4F3"
-light_lilac <- "#E6EBF9"
-dark_yellow <- "#FFB446"
-med_yellow <- "#FFD699"
-light_yellow <- "#FFF3E0"
-dark_green <- "#006152"
-med_green <- "#00AD93"
-light_green <- "#E2F9F6"
-dark_cream <- "#E9CCBE"
-med_cream <- "#F7EDE8"
-light_cream <- "#F5F0ED"
-med_grey <- "#F3F3F3"
 
+add_weights_transfers <- function(dataset, set_portfolio, set_level, set_year, state_specific){
+  
+  working_df <- dataset
+  
+  prop_served <- cfa_lift$proportion_inneed_served[cfa_lift$portfolio == set_portfolio & 
+                                                     cfa_lift$level == set_level & 
+                                                     cfa_lift$year == set_year]
+  transfer_amounts <- cfa_lift$percapitaben[cfa_lift$portfolio == set_portfolio & 
+                                              cfa_lift$level == set_level & 
+                                              cfa_lift$year == set_year] / 1000
+  
+  weights_name <- paste("weights", set_portfolio, set_level, set_year, sep = "_")
+  transfers_name <- paste("new_transfers", set_portfolio, set_level, set_year, sep = "_")
+  
+  if(state_specific == FALSE){
+    
+    working_df[, weights_name] <- ifelse(working_df$pair_id == 1, working_df$asecwt * prop_served, 
+                                         ifelse(working_df$pair_id == 2, working_df$asecwt * (1 - prop_served), 
+                                                working_df$asecwt))
+    
+    working_df[, transfers_name] <- ifelse(working_df$pair_id == 1, working_df$totalTransfers + transfer_amounts * working_df$hhsize, 
+                                           working_df$totalTransfers)
+    
+  } else if(state_specific == TRUE){
+    
+    working_df[, weights_name] <- ifelse(working_df$pair_id == 1, working_df$asecwt * prop_served, 
+                                         ifelse(working_df$pair_id == 2, working_df$asecwt * (1 - prop_served), 
+                                                working_df$asecwt))
+    working_df[, weights_name] <- ifelse(working_df$State == set_level, working_df[, weights_name], NA)
+    
+    working_df[, transfers_name] <- ifelse(working_df$pair_id == 1, working_df$totalTransfers + transfer_amounts * working_df$hhsize, 
+                                           working_df$totalTransfers)  
+    working_df[, transfers_name] <- ifelse(working_df$State == set_level, working_df[, transfers_name], NA)
+    
+  } 
+  
+  working_df <- working_df[! is.na(working_df[, weights_name]),]
+  
+  return(working_df)
+  
+}
 
+cfa_colors <- cbind.data.frame(color = c("dark_purple", "med_purple", "light_purple", 
+                                         "dark_red", "med_red", "light_red", 
+                                         "dark_lilac", "med_lilac", "light_lilac", 
+                                         "dark_yellow", "med_yellow", "light_yellow", 
+                                         "dark_green", "med_green", "light_green", 
+                                         "dark_cream", "med_cream", "light_cream", 
+                                         "med_grey"), 
+                               hex = c("#2B1A78", "#5650BE", "#C2C0E8", 
+                                                "#AF121D", "#EF6C75", "#F9C8CB", 
+                                                "#A1B4EA", "#C9D4F3", "#E6EBF9", 
+                                                "#FFB446", "#FFD699", "#FFF3E0", 
+                                                "#006152", "#00AD93", "#E2F9F6", 
+                                                "#E9CCBE", "#F7EDE8", "#F5F0ED", 
+                                                "#F3F3F3"))
 
 
 

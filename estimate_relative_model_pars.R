@@ -59,6 +59,7 @@ ggplot(state_sub, aes(x = reorder(state_Rnls, r_val), y = r_val, color = cfa)) +
         legend.position = "top", 
         legend.text = element_text(size = 22), 
         legend.title = element_text(size = 22))
+
 ###### Get National Estimates ######
 
 cps_national <- cps
@@ -70,8 +71,7 @@ national <- combine_all(data = cps_national,
                         weights_value = TRUE, 
                         starting_values = NA, 
                         dv_string = "totalTransfers", 
-                        psi = set_psi_national / 1000)
-
+                        psi = as.numeric(national_col) / 1000)
 
 
 
