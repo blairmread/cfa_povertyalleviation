@@ -158,10 +158,10 @@ rm(mean_statehhsize)
 rm(co_sizes_TMP)
 rm(co_sizes)
 rm(mean_hhsize)
+
   
   
-  
-  
+
   
   
   

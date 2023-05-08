@@ -5,10 +5,12 @@
 # 3. calc_percap.R
 # 4. get_psis.R
 
-loop_states <- as.list(unique(cps$state_al))
+options(digits=8)
+
+loop_states <- as.list(unique(cps$state_alpha))
 
 state_mods_TMP <- lapply(loop_states, function(state){
-  st_data <- cps[cps$state_al == state,]
+  st_data <- cps[cps$state_alpha == state,]
   ests <- combine_all(data = st_data, 
                     weights_value = FALSE, 
                     starting_values = NA, 
@@ -20,7 +22,7 @@ state_mods_TMP <- lapply(loop_states, function(state){
 state_mods <- do.call(rbind, state_mods_TMP)
 
 state_mods_weights_TMP <- do.call(rbind, lapply(loop_states, function(state){
-  st_data <- cps[cps$state_al == state,]
+  st_data <- cps[cps$state_alpha == state,]
   start_pars <- state_mods[state_mods$state_Rnls == unique(st_data$State),]
   
   ests <- combine_all(data = st_data, 
@@ -107,7 +109,7 @@ allev_with_cfa_TMP <- lapply(1:length(loop_names), function(x){
                           dv_string = call_transfers,
                           psi_value = set_psi_national / 1000)
   
-  national$outcome <- call_transfers
+  national$outcome <- id
   return(national)
   
   } else if (grepl("National", id) == FALSE){
@@ -120,14 +122,40 @@ allev_with_cfa_TMP <- lapply(1:length(loop_names), function(x){
                         starting_values = start_pars, 
                         dv_string = call_transfers,
                         psi_value = set_psi_national / 1000)
-    ests$outcome <- call_transfers
+    ests$outcome <- id
     return(ests)
   }
 })
 
+
 allev_with_cfa <- do.call(rbind, allev_with_cfa_TMP) %>% 
-  dplyr::select(-c(V_A_Rnls, V_B1_Rnls, V_B2_Rnls, C_AB1_Rnls, C_AB2_Rnls, C_B1B2_Rnls, a, b1, b2))
+  dplyr::select(state_Rnls, state, r_val, outcome) %>% 
+  separate(data = ., col = outcome, into = c("portfolio", "level", "year"), sep = "\\_") %>% 
+  mutate(port_year = paste(portfolio, year, sep = "_")) %>% 
+  dplyr::select(-c(level, year, portfolio)) %>% 
+  pivot_wider(names_from = port_year, values_from = r_val)
 
 baseline_models <- rbind.data.frame(state_mods_weights, national) %>% 
-  dplyr::select(-c(V_A_Rnls, V_B1_Rnls, V_B2_Rnls, C_AB1_Rnls, C_AB2_Rnls, C_B1B2_Rnls, a, b1, b2))
+  dplyr::select(-c(V_A_Rnls, V_B1_Rnls, V_B2_Rnls, C_AB1_Rnls, C_AB2_Rnls, C_B1B2_Rnls)) %>% 
+  mutate(across(c(a_Rnls, b1_Rnls, b2_Rnls, a, b1, b2, tau, r_val), as.numeric))
 
+all_models <- left_join(allev_with_cfa, baseline_models) %>% 
+  pivot_longer(-c(state_Rnls, state, a_Rnls, b1_Rnls, b2_Rnls, tau, r_val, a, b1, b2)) %>% 
+  filter(! is.na(value)) %>% 
+  rename(cfa_r = value, 
+         portfolio_id = name, 
+         baseline_r = r_val) %>% 
+  mutate(difference = (cfa_r - baseline_r) * 10000) %>% 
+  dplyr::select(-cfa_r) %>% 
+  pivot_wider(names_from = portfolio_id, values_from = difference)
+
+rm(state_mods_weights_TMP)
+rm(state_mods_TMP)
+rm(state_mods)
+rm(state_mods_weights)
+rm(state_sub)
+rm(allev_with_cfa_TMP)
+rm(allev_with_cfa)
+
+View(baseline_models[, names(baseline_models) %in% c("state_Rnls", "a_Rnls", "b1_Rnls", "b2_Rnls", "tau", "r_val")])
+View(all_models[, names(all_models) %in% c("state_Rnls", "tax_2021", "tax_2022", "safety net_2022", "safety net_2021", "total_2022", "total_2021")])

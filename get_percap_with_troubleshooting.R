@@ -1,8 +1,8 @@
 
 # This code calculates the CfA per capita improvements 
 # We do this by: 
-  # Recording the dollar amounts of benefits delivered and th number of people served by CfA per year and per portfolio 
-  # Calculate the % of Americans who receive any benefits at all, based on the CPS-ASEC data 
+# Recording the dollar amounts of benefits delivered and th number of people served by CfA per year and per portfolio 
+# Calculate the % of Americans who receive any benefits at all, based on the CPS-ASEC data 
 
 library(readxl)
 options(scipen = 100, digits = 22)
@@ -15,14 +15,14 @@ options(scipen = 100, digits = 22)
 
 # Manually import the numbers from the Board Metrics and Metabase
 cfa_national <- cbind.data.frame(portfolio = rep(c("safety net", "tax", "total"), times = 3), 
-                              year = rep(c(2022, 2021, 2020), each = 3), 
-                              benefits_delivered = c(2974347206, 370780052, 2974347206 + 370780052, 
-                                                     2825646276, 787368213, 2825646276 + 787368213, 
-                                                     2505213759, 62612974, 2505213759 + 62612974), 
-                              people_helped = c(3853243, 277625, 3853243 + 277625,
-                                                3234406, 590086, 3234406 + 590086,
-                                                6046485, 488249, 6046485 + 488249), 
-                              level = rep("National", length(rep(c("safety net", "tax", "total"), times = 3))))
+                                 year = rep(c(2022, 2021, 2020), each = 3), 
+                                 benefits_delivered = c(2974347206, 370780052, 2974347206 + 370780052, 
+                                                        2825646276, 787368213, 2825646276 + 787368213, 
+                                                        2505213759, 62612974, 2505213759 + 62612974), 
+                                 people_helped = c(3853243, 277625, 3853243 + 277625,
+                                                   3234406, 590086, 3234406 + 590086,
+                                                   6046485, 488249, 6046485 + 488249), 
+                                 level = rep("National", length(rep(c("safety net", "tax", "total"), times = 3))))
 
 cfa_sn_state <- cbind.data.frame(level = rep(c("Minnesota", "California"), each = 2), 
                                  year = rep(c(2022, 2021), times = 2), 
@@ -49,16 +49,33 @@ cfa_tax_state <- read.csv("/Users/blair@codeforamerica.org/Documents/GitHub/cfa_
   rename(level = State) %>% 
   dplyr::select(-state_alpha)
 
+test_tax <- cfa_tax_state
+test_tax$problem_21 <- ifelse(test_tax$level %in% 
+                                c("Hawaii", "Iowa", 
+                                  "Montana", "New Hampshire", 
+                                  "New Jersey", "Rhode Island", 
+                                  "Vermont"), 1, 0)
+test_tax$problem_22 <- ifelse(test_tax$level %in% 
+                                c("Hawaii", "Illinois", 
+                                  "Indiana", "Iowa", 
+                                  "Montana", "New Hampshire", 
+                                  "New Jersey", "North Dakota", 
+                                  "Rhode Island", "South Dakota", 
+                                  "Vermont", "Washington"), 1, 0)
+test_tax$problem_obs <- ifelse(test_tax$year == 2021 & test_tax$problem_21 == 1, 1, 
+                               ifelse(test_tax$year == 2022 & test_tax$problem_22 == 1, 1, 0))
+test_tax$per_person <- test_tax$benefits_delivered / test_tax$people_helped
+
+ggplot(test_tax[test_tax$year == 2021,], aes(x = per_person, y = reorder(level, per_person), fill = as.factor(problem_obs))) + 
+  geom_bar(stat = "identity") + 
+  facet_wrap(~ year) + 
+  theme_bw() + 
+  labs(title = 2021)
+
 cfa_all <- rbind.data.frame(cfa_national, cfa_sn_state, cfa_tax_state)
 
-list_amounts <- cfa_all %>% 
-  filter(portfolio == "tax" & level != "National") %>% 
-  filter(year != 2023) %>% 
-  pivot_wider(names_from = year, values_from = c(benefits_delivered, people_helped))
-
-
 rm(cfa_national); rm(cfa_sn_state); rm(state_ids); rm(cfa_tax_state)
-  # Clean things up a little bit 
+# Clean things up a little bit 
 
 ggplot(cfa_all[cfa_all$level == "National",], aes(x = portfolio, y = benefits_delivered / 100000, fill = as.character(year))) + 
   geom_bar(stat = "identity", position = "dodge") + 
@@ -113,6 +130,20 @@ state_popTMP$clState <- substr(state_popTMP$State, 2, nchar(state_popTMP$State))
 state_popTMP.2 <- rbind.data.frame(state_popTMP, 
                                    c(".National", us_population, "National"))
 
+state_pop_test <- state_popTMP.2
+state_pop_test$problem <- ifelse(state_pop_test$clState %in%  
+                                   c("Hawaii", "Illinois", 
+                                     "Indiana", "Iowa", 
+                                     "Montana", "New Hampshire", 
+                                     "New Jersey", "North Dakota", 
+                                     "Rhode Island", "South Dakota", 
+                                     "Vermont", "Washington"), "Yes", "No" )
+state_pop_test$Apr2020 <- as.numeric(as.character(unlist(state_pop_test$Apr2020)))
+
+ggplot(state_pop_test[! state_pop_test$clState == "National", ], aes(x = Apr2020, y = reorder(clState, Apr2020), fill = problem)) + 
+  geom_bar(stat = "identity") + 
+  theme_bw()
+
 
 ######### Assign CfA amounts for each person in the CPS/ASEC sample ############ 
 # Step 3: Figure out the per capita amounts of benefits that CfA unlocked
@@ -126,46 +157,62 @@ cfa_lift <- state_popTMP.2 %>%
   mutate(total_pop = as.numeric(as.character(unlist(total_pop))), 
          proportion_inneed_served = people_helped / (total_pop * benefits_mean), 
          percapitaben = benefits_delivered / (total_pop * benefits_mean))
-  # proportion_inneed_served = how much of the benefits-receiving population did CfA reach? 
-  # percapitaben = if CfA reached everyone who received benefits, how much would they have given them? 
+# proportion_inneed_served = how much of the benefits-receiving population did CfA reach? 
+# percapitaben = if CfA reached everyone who received benefits, how much would they have given them? 
 
 
 cps_forpc <- cps %>% 
   mutate(hhsize = ifelse(mstat == 2, nchild + 2, 
                          nchild + 1)) %>% 
   dplyr::select(c(year, asecwt, State, state_alpha, totalTransfers, Y, depx, hhsize, on_benefits))
-  # Make a new (and smaller) DF that only includes the questions we need to estimate the models 
+# Make a new (and smaller) DF that only includes the questions we need to estimate the models 
 
 nonclients <- cps_forpc[cps_forpc$on_benefits != 1, ]
 nonclients$pair_id <- 3
 nonclients$unique_id <- NA
-  # Make a df for non-clients and hold them here 
-  # Make it compatible with the clients DF by adding the necessary ID fields 
+# Make a df for non-clients and hold them here 
+# Make it compatible with the clients DF by adding the necessary ID fields 
 
 clients <- cps_forpc[cps_forpc$on_benefits == 1,]
 clients$unique_id <- seq(1, nrow(clients), by = 1)
-  # Split the sample up into those who received any benefits, and those who did not receive any benefits 
-  # This is because we will only "award" CfA benefits to those who received benefits in the sample
-  # Then, create a unique ID because we will "duplicate" these households into one partition that received benefits 
-    # and one that did not 
+# Split the sample up into those who received any benefits, and those who did not receive any benefits 
+# This is because we will only "award" CfA benefits to those who received benefits in the sample
+# Then, create a unique ID because we will "duplicate" these households into one partition that received benefits 
+# and one that did not 
 
 clients_cfa <- rbind.data.frame(clients, clients) 
 clients_cfa <- clients_cfa[order(clients_cfa$unique_id),]
 clients_cfa$pair_id <- rep(c(1, 2), times = nrow(clients))
-  # Make two identical data frames and sort by ID so each member of the pair appears together 
-  # Assign each member of the pair an ID -- 1 or 2 
+# Make two identical data frames and sort by ID so each member of the pair appears together 
+# Assign each member of the pair an ID -- 1 or 2 
 
 cps_cfa <- rbind.data.frame(clients_cfa, nonclients)
 # In this dataframe, if "pairid" = 1, you received CfA's benefits & government benefits 
 # If pairid = 2, you only received government benefits 
 # If pairid = 3, you received neither 
 
+test_bene_prop <- cps_cfa %>% 
+  filter(! pair_id == 2) %>% 
+  group_by(State) %>% 
+  summarize(mean_bene = mean(pair_id == 1)) %>% 
+  mutate(problem = ifelse(State %in%  
+                            c("Hawaii", "Illinois", 
+                              "Indiana", "Iowa", 
+                              "Montana", "New Hampshire", 
+                              "New Jersey", "North Dakota", 
+                              "Rhode Island", "South Dakota", 
+                              "Vermont", "Washington"), "Yes", "No" ))
+
+ggplot(test_bene_prop, aes(x = round(mean_bene, 3), y = reorder(State, mean_bene), fill = problem)) + 
+  geom_bar(stat = "identity") + 
+  theme_bw()
+
 get_queries <- cfa_lift %>% 
   dplyr::select(c(portfolio, level, year)) %>% 
   distinct(., .keep_all = TRUE) %>% 
   mutate(specific = ifelse(level == "National", FALSE, TRUE)) %>% 
   filter(! year %in% c(2020, 2023))
-  # This gives you all the different inputs you need for the function to work 
+# This gives you all the different inputs you need for the function to work 
 
 new_copies_TMP <- lapply(as.list(1:nrow(get_queries)), function(x){
   run_func <- add_weights_transfers(dataset = cps_cfa, 
@@ -176,17 +223,19 @@ new_copies_TMP <- lapply(as.list(1:nrow(get_queries)), function(x){
   
   return(run_func)
 })
-  # This gives you a new dataframe with the variables that we'll need to re-estimate 
-    # the functions with the "plus CfA" transfers amount 
+# This gives you a new dataframe with the variables that we'll need to re-estimate 
+# the functions with the "plus CfA" transfers amount 
 
 names(new_copies_TMP) <- paste(get_queries$portfolio, get_queries$level, get_queries$year, sep = "_")
-  # Save the names so we can back out what we're looking at with the 
+# Save the names so we can back out what we're looking at with the 
 
 gc()
 rm(state_popTMP); rm(state_popTMP.2); rm(stids)
 rm(clients); rm(clients_cfa); rm(nonclients)
 rm(cps_forpc)
 rm(cfa_all)
+
+
 
 
 
